@@ -4,7 +4,7 @@ include ../../config.mk
 
 all: scalar
 
-scalar: main.S main.c config.h
+scalar: main.S main.c config.h ../../config.mk
 	${CC} ${CFLAGS} main.S main.c -o $@
 
 clean:

@@ -193,9 +193,9 @@ nolibc_init(void)
 #if IFHOSTED(1)+0
 	struct perf_event_attr pe = {0};
 	pe.exclude_kernel = 1;
+	pe.exclude_hv = 1;
 	pe.type = PERF_TYPE_HARDWARE;
 	pe.config = PERF_COUNT_HW_CPU_CYCLES;
-	pe.exclude_kernel = 1;
 #else
 	struct nolibc_perf_event_attr {
 		uint32_t type, size;

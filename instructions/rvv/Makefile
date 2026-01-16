@@ -4,7 +4,7 @@ include ../../config.mk
 
 all: rvv
 
-rvv: gen.S main.c config.h
+rvv: gen.S main.c config.h ../../config.mk
 	m4 gen.S > main.S
 	${CC} ${CFLAGS} main.S main.c -o $@
 	rm main.S

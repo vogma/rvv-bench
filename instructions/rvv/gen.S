@@ -168,7 +168,7 @@ define(`m_loadstore',
 	srli t2, t2, \shift
 	slli t2, t2, \shift
 
-	li t1, -1
+	li t1, -1<<\shift /* negative stride 1 */
 .endm
 
 .macro m_mem8

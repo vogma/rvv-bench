@@ -1,9 +1,6 @@
 WARN=-Wall -Wextra -Wno-unused-function -Wno-unused-parameter
 
-# append -DUSE_PERF_EVENT to CFLAGS, if the cycle csr isn't exposed
-# try -DUSE_PERF_EVENT_SLOW if the abvoe doesn't work
-
-# native build
+# native build, adjust -march= to match your platform
 CC=cc
 CFLAGS=-march=rv64gcv -O3 ${WARN} -DUSE_PERF_EVENT
 
@@ -15,3 +12,11 @@ CFLAGS=-march=rv64gcv -O3 ${WARN} -DUSE_PERF_EVENT
 #CC=clang
 #CFLAGS=--target=riscv64 -march=rv64gcv_zba_zbb_zbs -O3 ${WARN} -nostdlib -fno-builtin -ffreestanding
 #CFLAGS=--target=riscv32 -march=rv32gc_zve32f_zba_zbb_zbs -O3 ${WARN} -nostdlib -fno-builtin -ffreestanding
+
+
+# CFLAGS defines:
+# -DUSE_PERF_EVENT:      use perf_event with kernel.perf_user_access=2
+# -DUSE_PERF_EVENT_SLOW: use perf_event with kernel.perf_user_access=1 (slower)
+# -DCUSTOM_HOST: define for a custom hosted enviroment and implement the
+#                unimplemented functions under `#ifdef CUSTOM_HOST` in ./nolibc.h
+

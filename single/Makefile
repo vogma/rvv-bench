@@ -6,6 +6,8 @@ EXECS=uarch veclibm
 
 all: ${EXECS}
 
+${EXECS}: ../config.mk
+
 uarch: uarch.S uarch.c
 	${CC} ${CFLAGS} -o $@ uarch.c uarch.S
 

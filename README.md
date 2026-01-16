@@ -12,18 +12,21 @@ Contains a bunch of benchmark of different implementations of certain algorithms
 
 Measures the cycle count of RVV instructions by unrolling and looping over the given instruction repeatedly.
 
-## Getting started
+## Quick start
 
-Start by configuring [./config.mk](./config.mk), such that `make` works and optionally [./run.sh](./run.sh), which allows you to compile and run using `make run`.
+**The easiest way to run the benchmarks is using the `./bench-all.sh` script.**
 
-The default configuration should work with all recent clang builds and doesn't require a full cross compilation toolchain, because it builds in freestanding mode.
-This means it will only work on linux, or linux syscall compatible OS.
+## Getting started for developers
 
-On recent linux versions, the performance counters aren't exposed by default, you may have to execute `echo 2 >/proc/sys/kernel/perf_user_access` and append `-DUSE_PERF_EVENT` to the `CFLAGS=...` line in [./config.mk](./config.mk) (if that doesn't work, try `-DUSE_PERF_EVENT_SLOW` instead).
+Start by configuring [./config.mk](./config.mk) and [./run.sh](./run.sh).
 
-You can configure [./config.mk](./config.mk) to build a hosted build or configure it with your custom toolchain, add the `-DCUSTOM_HOST` define, and implement the unimplemented functions under `#ifdef CUSTOM_HOST` in [./nolibc.h](./nolibc.h).
+To get access to the cycle performance counter on Linux, `/proc/sys/kernel/perf_user_access` and `/proc/sys/kernel/perf_event_paranoid` need to be configured.
 
-XTheadVector isn't supported anymore.
+`perf_event_paranoid` should have a value <=2.
+
+`perf_user_access` should be set to "2" and `-DUSE_PERF_EVENT` appended to the `CFLAGS` in [./config.mk](./config.mk). If this doesn't work, set `perf_user_access` to "1" and use `-DUSE_PERF_EVENT_SLOW`.
+
+You can adjust the benchmark runtime and precision by modifying the config.h files in each directory.
 
 ### Running benchmarks ([./bench/](./bench/))
 

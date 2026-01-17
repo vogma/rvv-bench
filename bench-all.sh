@@ -17,9 +17,11 @@ then
 	printf 'Press Enter to continue...'; read dummy; echo
 fi
 
+git submodule update --init
+
 echo "Please configure config.mk and run.sh for your environment."
 echo "The instructions are in the files."
-printf 'Press Enter to start the benchmarks...'; read dummy; echo
+printf 'Press Enter to start the benchmarks... (take about 2h)'; read dummy; echo
 
 mkdir out
 make -C bench run -j$(nproc) | tee out/bench.log

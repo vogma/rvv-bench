@@ -1,7 +1,7 @@
 #define VL s3
 
-#define t7 a6
-#define t8 a7
+#define t7 s4
+#define t8 s5
 
 #if __riscv_xlen == 32
 #define IF64(...)
@@ -802,12 +802,13 @@ randomize:
 /* u64 f(u64 (*bench)(void), u64 type, u64 vl, u64 seed) */
 .global run_bench
 run_bench:
-	addi sp, sp, -48
+	addi sp, sp, -56
 	sx ra, 8(sp)
 	sx VL, 16(sp)
 	sx s1, 24(sp)
 	sx s2, 32(sp)
-	sx VL, 40(sp)
+	sx t7, 40(sp)
+	sx t8, 48(sp)
 
 	mv s1, a0
 	mv s2, a1 /* type */
@@ -824,6 +825,7 @@ run_bench:
 	lx VL, 16(sp)
 	lx s1, 24(sp)
 	lx s2, 32(sp)
-	lx VL, 40(sp)
-	addi sp, sp, 48
+	lx t7, 40(sp)
+	lx t8, 48(sp)
+	addi sp, sp, 56
 	ret

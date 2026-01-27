@@ -36,7 +36,7 @@ run(char const *name, ux (*bench)(void)) {
 		sum += arr[i];
 #endif
 
-	print("<td>")(fn,2,sum * 1.0f/(UNROLL*LOOP*count))("</td>");
+	print("<td>")(fn,2,sum * 1.0f/(UNROLL*8*LOOP*count))("</td>");
 	print("</tr>\n")(flush,);
 }
 

@@ -1,5 +1,6 @@
-#define WARMUP 1000
-#define UNROLL 64
+/* implicit 8x unroll */
+#define WARMUP 128
+#define UNROLL 16
 #define LOOP 512
 #define RUNS 64
 

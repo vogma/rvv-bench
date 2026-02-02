@@ -1,3 +1,20 @@
+#include <stddef.h>
+
+static const size_t varint_sizes[] = {
+    1024, 2048, 4096, 8192, 16384, 32768, 65536,
+    131072, 262144, 524288, 1048576, 2097152, 4194304
+};
+#define VARINT_NUM_SIZES (sizeof(varint_sizes) / sizeof(varint_sizes[0]))
+
+static inline size_t varint_next_size(size_t c) {
+    for (size_t i = 0; i < VARINT_NUM_SIZES; ++i) {
+        if (varint_sizes[i] > c)
+            return varint_sizes[i];
+    }
+    return varint_sizes[VARINT_NUM_SIZES - 1] + 1; /* end iteration */
+}
+
+#define BENCH_NEXT(c) varint_next_size(c)
 #include "bench.h"
 
 #ifdef __riscv_vector
@@ -228,12 +245,151 @@ uint32_t *dest;
 uint8_t *srcv;
 size_t last_count;
 
-/* TODO Generate valid varint test data.*/
-void init(void) {
+size_t vbyte_encode(const uint32_t *in, size_t length, uint8_t *bout)
+{
+    uint8_t *initbout = bout;
+    for (size_t k = 0; k < length; ++k)
+    {
+        const uint32_t val = in[k];
+
+        if (val < (1U << 7))
+        {
+            *bout = val & 0x7F;
+            ++bout;
+        }
+        else if (val < (1U << 14))
+        {
+            *bout = (uint8_t)((val & 0x7F) | (1U << 7));
+            ++bout;
+            *bout = (uint8_t)(val >> 7);
+            ++bout;
+        }
+        else if (val < (1U << 21))
+        {
+            *bout = (uint8_t)((val & 0x7F) | (1U << 7));
+            ++bout;
+            *bout = (uint8_t)(((val >> 7) & 0x7F) | (1U << 7));
+            ++bout;
+            *bout = (uint8_t)(val >> 14);
+            ++bout;
+        }
+        else if (val < (1U << 28))
+        {
+            *bout = (uint8_t)((val & 0x7F) | (1U << 7));
+            ++bout;
+            *bout = (uint8_t)(((val >> 7) & 0x7F) | (1U << 7));
+            ++bout;
+            *bout = (uint8_t)(((val >> 14) & 0x7F) | (1U << 7));
+            ++bout;
+            *bout = (uint8_t)(val >> 21);
+            ++bout;
+        }
+        else
+        {
+            *bout = (uint8_t)((val & 0x7F) | (1U << 7));
+            ++bout;
+            *bout = (uint8_t)(((val >> 7) & 0x7F) | (1U << 7));
+            ++bout;
+            *bout = (uint8_t)(((val >> 14) & 0x7F) | (1U << 7));
+            ++bout;
+            *bout = (uint8_t)(((val >> 21) & 0x7F) | (1U << 7));
+            ++bout;
+            *bout = (uint8_t)(val >> 28);
+            ++bout;
+        }
+    }
+    return bout - initbout;
+}
+
+/* Random helper that respects an upper bound */
+static inline uint32_t rand_in_range(uint32_t low, uint32_t high_exclusive)
+{
+    return low + (uint32_t)(bench_urand() % (high_exclusive - low));
+}
+
+/* Generate a value that will encode to exactly len bytes */
+static inline uint32_t random_value_for_length(uint8_t len)
+{
+    switch (len)
+    {
+    case 1:
+        return (uint32_t)(bench_urand() & 0x7F);
+    case 2:
+        return rand_in_range(1u << 7, 1u << 14);
+    case 3:
+        return rand_in_range(1u << 14, 1u << 21);
+    case 4:
+        return rand_in_range(1u << 21, 1u << 28);
+    default: /* len == 5 */
+        return ((uint32_t)bench_urand()) | (1u << 28);
+    }
+}
+
+/* Pick a varint length according to the (possibly truncated) distribution */
+static inline uint8_t pick_length(uint8_t max_len, const int weights[5])
+{
+    int total = 0;
+    for (uint8_t i = 0; i < max_len; ++i)
+        total += weights[i];
+
+    uint32_t r = (uint32_t)(bench_urand() % total);
+    int acc = 0;
+    for (uint8_t i = 0; i < max_len; ++i)
+    {
+        acc += weights[i];
+        if (r < (uint32_t)acc)
+            return (uint8_t)(i + 1);
+    }
+    return max_len;
+}
+
+/* Generate valid, randomly ordered varint test data with a configurable length distribution. */
+void init(void)
+{
+    /* Tune these percentages as desired; they must sum to 100. */
+    const int dist_1byte = 40;
+    const int dist_2byte = 25;
+    const int dist_3byte = 15;
+    const int dist_4byte = 10;
+    const int dist_5byte = 10;
+    const int weights[5] = {dist_1byte, dist_2byte, dist_3byte, dist_4byte, dist_5byte};
+
     uint8_t *p = mem;
-    uint8_t *end = mem + MAX_MEM/8;
-    while (p < end) {
-        *p++ = bench_urand() & 0x7F;  /* 1-byte varints only: 0-127 */
+    uint8_t *end = mem + MAX_MEM / 8;
+    const size_t max_bytes = (size_t)(end - mem);
+
+    /* Ensure every benchmarked prefix ends on a varint boundary. */
+    size_t stop_idx = 0;
+    size_t next_stop = varint_sizes[0];
+
+    while (p < end)
+    {
+        size_t offset = (size_t)(p - mem);
+
+        /* Advance to the next benchmark length if we've reached/passed it. */
+        while (offset >= next_stop && stop_idx < VARINT_NUM_SIZES - 1) {
+            ++stop_idx;
+            next_stop = varint_sizes[stop_idx];
+        }
+
+        size_t space_to_end = (size_t)(end - p);
+        size_t space_to_stop = (next_stop > offset && next_stop <= max_bytes) ? (next_stop - offset) : space_to_end;
+
+        /* Limit the candidate length so we never cross a benchmark stop or the buffer end. */
+        size_t max_len = 5;
+        if (space_to_end < max_len)
+            max_len = space_to_end;
+        if (space_to_stop < max_len)
+            max_len = space_to_stop;
+
+        if (max_len == 0)
+            break;
+
+        uint8_t len = pick_length((uint8_t)max_len, weights);
+        uint32_t value = random_value_for_length(len);
+
+        size_t written = vbyte_encode(&value, 1, p);
+        p += written;
     }
 }
 
@@ -252,7 +408,7 @@ BENCH_BEG(base) {
     TIME last_count = f(srcv, n, dest);
 } BENCH_END
 
-/* Register benchmark. N = MAX_MEM/8 (max input bytes). */
+/* Register benchmark. N must be > largest size to include all test sizes. */
 Bench benches[] = {
-    BENCH(impls, MAX_MEM/8, "varint decode", bench_base),
+    BENCH(impls, varint_sizes[VARINT_NUM_SIZES - 1] + 1, "varint decode", bench_base),
 }; BENCH_MAIN(benches)

@@ -4,7 +4,7 @@
 
 include ../config.mk
 
-EXECS=memcpy memset memreverse utf8_count strlen mergelines mandelbrot chacha20 poly1305 ascii_to_utf16 ascii_to_utf32 byteswap LUT4 LUT6 hist base64_encode trans8x8e8 trans8x8e16
+EXECS=memcpy memset memreverse utf8_count strlen mergelines mandelbrot chacha20 poly1305 ascii_to_utf16 ascii_to_utf32 byteswap LUT4 LUT6 hist base64_encode trans8x8e8 trans8x8e16 varint_decode
 
 all: ${EXECS}
 
@@ -31,6 +31,9 @@ ${EXECS}: config.h bench.h template.S ../config.mk
 
 .c:
 	${CC} ${CFLAGS} -o $@ $< -DINC=$@.S template.S
+
+varint_decode: varint_decode.c
+	${CC} ${CFLAGS} -o $@ $<
 
 clean:
 	rm -f ${EXECS}
